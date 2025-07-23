@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
+from itertools import permutations
 import time
 
 class Otimizador:
@@ -247,19 +248,32 @@ class Otimizador:
 
         df_resultados = pd.DataFrame(resultados).sort_values(by='hora_criacao').reset_index(drop=True)
         
-        dist_total = sum(e['distancia_total'] for e in self.empilhadeiras.values())
-        dist_sem_carga = sum(e['distancia_sem_carga'] for e in self.empilhadeiras.values())
-        tempos_ociosos_parado = [e['tempo_ocioso_parado'].total_seconds() for e in self.empilhadeiras.values()]
-        tempos_ociosos_movimento = [e['tempo_ocioso_movimento'].total_seconds() for e in self.empilhadeiras.values()]
+        dist_total = df_resultados['distancia_total'].sum()
+        dist_sem_carga = df_resultados['distancia_sem_carga'].sum()
+        dist_com_carga = df_resultados['distancia_com_carga'].sum()
+        
+        tempo_sem_carga_total = df_resultados['tempo_sem_carga'].sum()
+        tempo_com_carga_total = df_resultados['tempo_com_carga'].sum()
+        tempo_movimento_total = df_resultados['tempo_movimento_total'].sum()
+        
+        tempo_inicio = df_resultados['hora_criacao'].min()
+        tempo_fim = df_resultados['hora_entrega'].max()
+        tempo_total_simulacao = (tempo_fim - tempo_inicio).total_seconds()
+        
+        tempo_ocioso_total = (self.num_empilhadeiras * tempo_total_simulacao) - tempo_movimento_total
+        tempo_ocioso_movimento = tempo_sem_carga_total
+        tempo_ocioso_parado = tempo_ocioso_total - tempo_ocioso_movimento
 
         metricas = {
             'total_ordens_processadas': len(df_resultados),
             'ordens_nao_atendidas_final': len(self.fila_espera_prioritaria),
-            'distancia_total_acumulada': dist_total,
-            'distancia_sem_carga_acumulada': dist_sem_carga,
-            'distancia_com_carga_acumulada': dist_total - dist_sem_carga,
-            'tempo_ocioso_parado_total_s': sum(tempos_ociosos_parado),
-            'tempo_ocioso_movimento_total_s': sum(tempos_ociosos_movimento),
+            'distancia_total': dist_total,
+            'distancia_sem_carga': dist_sem_carga,
+            'distancia_com_carga': dist_com_carga,
+            'tempo_ocioso_total': tempo_ocioso_total,
+            'tempo_ocioso_parado': tempo_ocioso_parado,
+            'tempo_ocioso_movimento': tempo_ocioso_movimento,
+            'tempo_com_carga_total': tempo_com_carga_total,
         }
         return df_resultados, metricas
 
@@ -267,7 +281,7 @@ if __name__ == "__main__":
     ordens = pd.read_excel("ordens_unificadas.xlsx")
     matriz_dist = pd.read_excel("matriz_distancias.xlsx")
     
-    NUM_EMPILHADEIRAS = 8
+    NUM_EMPILHADEIRAS = 7
     FATOR_BACKHAUL = 1.6
     
     print("\nIniciando otimização...")
@@ -281,15 +295,14 @@ if __name__ == "__main__":
     print(f"\n=== RESUMO FINAL ===")
     print(f"Número de empilhadeiras: {NUM_EMPILHADEIRAS}")
     print(f"Ordens processadas: {metricas['total_ordens_processadas']}")
-    print(f"Ordens não atendidas (deve ser 0): {metricas['ordens_nao_atendidas_final']}")
-    print(f"Distância total: {metricas['distancia_total_acumulada']:.2f}m")
-    percentual_sem_carga = (metricas['distancia_sem_carga_acumulada'] / metricas['distancia_total_acumulada']) if metricas['distancia_total_acumulada'] > 0 else 0
-    print(f"Distância sem carga: {metricas['distancia_sem_carga_acumulada']:.2f}m ({percentual_sem_carga:.2%})")
-    print(f"Distância com carga: {metricas['distancia_com_carga_acumulada']:.2f}m")
-    tempo_ocioso_total = metricas['tempo_ocioso_parado_total_s'] + metricas['tempo_ocioso_movimento_total_s']
-    print(f"Tempo ocioso total: {timedelta(seconds=tempo_ocioso_total)}")
-    print(f"  - Parado: {timedelta(seconds=metricas['tempo_ocioso_parado_total_s'])}")
-    print(f"  - Em movimento sem carga (em segundos): {metricas['tempo_ocioso_movimento_total']:.2f}")
+    print(f"Ordens não atendidas: {metricas['ordens_nao_atendidas_final']}")
+    print(f"Distância total: {metricas['distancia_total']:.2f}m")
+    percentual_sem_carga = (metricas['distancia_sem_carga'] / metricas['distancia_total']) if metricas['distancia_total'] > 0 else 0
+    print(f"Distância sem carga: {metricas['distancia_sem_carga']:.2f}m ({percentual_sem_carga:.2%})")
+    print(f"Distância com carga: {metricas['distancia_com_carga']:.2f}m")
+    print(f"Tempo ocioso total: {timedelta(seconds=metricas['tempo_ocioso_total'])} ({metricas['tempo_ocioso_total']:.2f}s)")
+    print(f"  - Parado: {timedelta(seconds=metricas['tempo_ocioso_parado'])} ({metricas['tempo_ocioso_parado']:.2f}s)")
+    print(f"  - Em movimento sem carga: {timedelta(seconds=metricas['tempo_ocioso_movimento'])} ({metricas['tempo_ocioso_movimento']:.2f}s)")
     print(f"Tempo total de execução: {timedelta(seconds=duracao_segundos)}")
     
     rotas.to_excel("resultados_backhauling.xlsx", index=False)
