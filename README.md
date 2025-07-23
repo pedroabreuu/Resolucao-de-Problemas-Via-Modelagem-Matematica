@@ -4,6 +4,8 @@ Repositório com a implementação em python das Heurísticas do problema propos
 
 Dúvidas sobre o problema ou sobre os códigos podem ser encaminhadas para:
 
+gs.nascimento17@unifesp.br
+arazo.leonardo@unifesp.br
 pedro.marx@unifesp.br
 
 Os dados fornecidos pelo proponente não podem ser disponibilizados devido à sua confidencialidade.
