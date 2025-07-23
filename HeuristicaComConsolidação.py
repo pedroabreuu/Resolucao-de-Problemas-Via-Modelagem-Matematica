@@ -272,7 +272,7 @@ class Otimizador:
 
 
 if __name__ == "__main__":
-    ordens = pd.read_excel("ordens_unificadas_1000.xlsx")
+    ordens = pd.read_excel("ordens_unificadas.xlsx")
     matriz_dist = pd.read_excel("matriz_distancias.xlsx")
 
     NUM_EMPILHADEIRAS = 12
